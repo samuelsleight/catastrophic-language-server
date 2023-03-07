@@ -142,6 +142,7 @@ struct TextDocumentItem {
 }
 
 struct DiagnosticCollector {
+    uri: Url,
     diagnostics: Vec<Diagnostic>,
 }
 
@@ -163,8 +164,15 @@ impl ErrorWriter for DiagnosticCollector {
     }
 
     fn note(&mut self, span: Span<()>, message: &str) -> std::fmt::Result {
-        self.diagnostics
-            .push(Diagnostic::new_simple(convert_span(span), message.into()));
+        if let Some(mut diagnostic) = self.diagnostics.last_mut() {
+            diagnostic
+                .related_information
+                .get_or_insert_with(Vec::new)
+                .push(DiagnosticRelatedInformation {
+                    message: message.into(),
+                    location: Location::new(self.uri.clone(), convert_span(span)),
+                })
+        }
 
         Ok(())
     }
@@ -175,6 +183,7 @@ impl Backend {
         let parse_result = Parser::with_str(&params.text).parse();
 
         let mut diagnostics = DiagnosticCollector {
+            uri: params.uri.clone(),
             diagnostics: Vec::new(),
         };
 
