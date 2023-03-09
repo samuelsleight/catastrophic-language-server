@@ -2,8 +2,10 @@ use tower_lsp::{LspService, Server};
 
 use self::handler::Handler;
 
+mod diagnostics;
 mod handler;
 mod instance;
+mod tokens;
 
 #[tokio::main]
 async fn main() {
