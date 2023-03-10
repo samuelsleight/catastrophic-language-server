@@ -5,6 +5,7 @@ const TOKEN_ARRAY: &[SemanticTokenType] = &[
     SemanticTokenType::PARAMETER,
     SemanticTokenType::NUMBER,
     SemanticTokenType::OPERATOR,
+    SemanticTokenType::COMMENT,
 ];
 
 pub const fn token_types() -> &'static [SemanticTokenType] {
@@ -29,4 +30,8 @@ pub fn number() -> u32 {
 
 pub fn operator() -> u32 {
     token_index(&SemanticTokenType::OPERATOR)
+}
+
+pub fn comment() -> u32 {
+    token_index(&SemanticTokenType::COMMENT)
 }

@@ -55,6 +55,10 @@ impl TokenCollector {
     }
 
     fn process_block(&mut self, block: &ast::Block) {
+        for comment in &block.comments {
+            self.tokens.push(comment.swap(tokens::comment()))
+        }
+
         for arg in &block.args {
             self.tokens.push(arg.swap(tokens::parameter()));
         }
