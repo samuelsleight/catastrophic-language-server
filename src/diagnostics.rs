@@ -1,5 +1,5 @@
 use catastrophic_ast::ast;
-use catastrophic_parser::parser::Error as ParseError;
+use catastrophic_parser::parser::{Error as ParseError, ParseOutput};
 
 use ruinous_util::{
     error::{context::ErrorProvider, writer::ErrorWriter},
@@ -25,15 +25,26 @@ impl DiagnosticCollector {
 
     pub fn process_diagnostics(
         uri: Url,
-        result: Result<ast::Block, ParseError>,
+        result: Result<ParseOutput, ParseError>,
     ) -> (Option<ast::Block>, Vec<Diagnostic>) {
         let mut diagnostics = DiagnosticCollector::new(uri);
+        let mut ast = None;
 
-        if let Err(errors) = &result {
-            errors.write_errors(&mut diagnostics);
+        match result {
+            Ok(output) => {
+                ast = Some(output.ast);
+
+                for error in output.errors {
+                    error.write_errors(&mut diagnostics);
+                }
+            }
+
+            Err(errors) => {
+                errors.write_errors(&mut diagnostics);
+            }
         }
 
-        (result.ok(), diagnostics.diagnostics)
+        (ast, diagnostics.diagnostics)
     }
 }
 

@@ -3,7 +3,7 @@ use tower_lsp::{
     jsonrpc::Result as LspResult,
     lsp_types::{
         DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-        InitializeParams, InitializeResult, MessageType, SemanticTokens, SemanticTokensFullOptions,
+        InitializeParams, InitializeResult, SemanticTokens, SemanticTokensFullOptions,
         SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams, SemanticTokensResult,
         ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Url,
     },
@@ -67,13 +67,6 @@ impl LanguageServer for Handler {
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        self.client
-            .show_message(
-                MessageType::INFO,
-                format!("Closed document: {}", params.text_document.uri),
-            )
-            .await;
-
         self.instance_map
             .remove(&params.text_document.uri.to_string());
     }
@@ -83,16 +76,8 @@ impl LanguageServer for Handler {
         params: SemanticTokensParams,
     ) -> LspResult<Option<SemanticTokensResult>> {
         Ok(self
-            .instance_map
-            .get(params.text_document.uri.as_str())
-            .and_then(|item| item.value().as_ref().map(Instance::semantic_tokens))
-            .map(|tokens| {
-                SemanticTokens {
-                    result_id: None,
-                    data: tokens,
-                }
-                .into()
-            }))
+            .instance_semantic_tokens(params.text_document.uri)
+            .await)
     }
 }
 
@@ -108,11 +93,29 @@ impl Handler {
         let mut maybe_instance = self.instance_map.entry(url.to_string()).or_default();
         maybe_instance.take();
 
-        let (new_instance, diagnostics) = Instance::from_source(url.clone(), source);
+        let (new_instance, diagnostics) = Instance::from_source(url.clone(), source).await;
         *maybe_instance = new_instance;
 
         self.client
             .publish_diagnostics(url, diagnostics, None)
             .await;
+    }
+
+    async fn instance_semantic_tokens(&self, uri: Url) -> Option<SemanticTokensResult> {
+        let Some(mut entry) = self.instance_map.get_mut(uri.as_str()) else { 
+            return None;
+        };
+
+        let Some(instance) = entry.value_mut() else { 
+            return None;
+        };
+
+        Some(
+            SemanticTokens {
+                result_id: None,
+                data: instance.semantic_tokens().await,
+            }
+            .into(),
+        )
     }
 }
